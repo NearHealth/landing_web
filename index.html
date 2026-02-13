@@ -149,7 +149,7 @@
 
       // Attempt deep link redirect
       window.location.href = deepLink;
-
+      console.log("Attempting to open deep link: ", deepLink);
       // After delay, show fallback store buttons
       setTimeout(function () {
         document.getElementById("spinner").style.display = "none";
