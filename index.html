@@ -53,24 +53,29 @@
       line-height: 1.5;
     }
 
-    .spinner {
-      width: 40px;
-      height: 40px;
-      border: 3px solid rgba(255,255,255,0.2);
-      border-top-color: #fff;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      margin: 0 auto 24px;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
     .status {
       font-size: 14px;
       opacity: 0.7;
       margin-bottom: 32px;
+    }
+
+    .open-btn {
+      display: inline-block;
+      padding: 16px 48px;
+      background: #fff;
+      color: #0f4c75;
+      text-decoration: none;
+      border-radius: 12px;
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 32px;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    }
+
+    .open-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 24px rgba(0,0,0,0.3);
     }
 
     .store-buttons {
@@ -114,10 +119,11 @@
   <div class="container">
     <div class="logo">N</div>
     <h1>Near Health</h1>
-    <p class="subtitle">Opening the app&hellip;</p>
+    <p class="subtitle" id="subtitle">Tap the button to open the app</p>
 
-    <div class="spinner" id="spinner"></div>
-    <p class="status" id="status">Redirecting you to Near Health</p>
+    <a class="open-btn" id="openBtn" href="#">Open Near Health</a>
+
+    <p class="status" id="status"></p>
 
     <div class="store-buttons" id="storeButtons">
       <a class="store-btn" id="iosBtn" href="#">Download on the App Store</a>
@@ -125,45 +131,68 @@
     </div>
   </div>
 
+  <!-- Hidden iframe used to trigger deep link without navigating away -->
+  <iframe id="deepLinkFrame" style="display:none;" aria-hidden="true"></iframe>
+
   <script>
     (function () {
       // ── Configuration ─────────────────────────────────────────────
       var DEEP_LINK_BASE = "mynearheathapp://onboarding/activation";
-      var IOS_STORE     = "https://apps.apple.com/app/near-health/id000000000";
-      var ANDROID_STORE = "https://play.google.com/store/apps/details?id=com.nearhealth.app";
-      var FALLBACK_DELAY = 1500; // ms before showing store links
+      var IOS_STORE      = "https://apps.apple.com/app/near-health/id000000000";
+      var ANDROID_STORE  = "https://play.google.com/store/apps/details?id=com.nearhealth.app";
+      var FALLBACK_DELAY = 2000;
       // ──────────────────────────────────────────────────────────────
 
       // Forward all query params from the current URL to the deep link
-      var params = window.location.search;
+      var params   = window.location.search;
       var deepLink = DEEP_LINK_BASE + (params || "");
 
       // Detect platform
-      var ua = navigator.userAgent || "";
-      var isIOS = /iPhone|iPad|iPod/i.test(ua);
+      var ua        = navigator.userAgent || "";
+      var isIOS     = /iPhone|iPad|iPod/i.test(ua);
       var isAndroid = /Android/i.test(ua);
 
+      // Pick the right store URL
+      var storeUrl = isIOS ? IOS_STORE : ANDROID_STORE;
+
       // Set store button hrefs
-      document.getElementById("iosBtn").href = IOS_STORE;
-      document.getElementById("androidBtn").href = ANDROID_STORE;
+      document.getElementById("iosBtn").href     = IOS_STORE;
+      document.getElementById("androidBtn").href  = ANDROID_STORE;
 
-      // Attempt deep link redirect
-      window.location.href = deepLink;
-      console.log("Attempting to open deep link: ", deepLink);
-      // After delay, show fallback store buttons
-      setTimeout(function () {
-        document.getElementById("spinner").style.display = "none";
-        document.getElementById("status").textContent = "Don\u2019t have the app yet?";
-        document.getElementById("storeButtons").classList.add("visible");
+      // Set the main button href to the deep link so tapping it triggers the scheme
+      var openBtn = document.getElementById("openBtn");
+      openBtn.href = deepLink;
 
-        // Auto-redirect to the correct store
-        if (isIOS) {
-          window.location.href = IOS_STORE;
-        } else if (isAndroid) {
-          window.location.href = ANDROID_STORE;
-        }
-        // Desktop users see both buttons
-      }, FALLBACK_DELAY);
+      // On tap: try deep link, then fall back to store after delay
+      openBtn.addEventListener("click", function (e) {
+        e.preventDefault();
+        tryDeepLink();
+      });
+
+      function tryDeepLink() {
+        console.log("Attempting deep link:", deepLink);
+
+        // Strategy 1: hidden iframe (works on many iOS/Android browsers)
+        var frame = document.getElementById("deepLinkFrame");
+        frame.src = deepLink;
+
+        // Strategy 2: also try window.location as backup
+        setTimeout(function () {
+          window.location.href = deepLink;
+        }, 100);
+
+        // After delay, show store fallback
+        setTimeout(function () {
+          document.getElementById("subtitle").textContent = "Don\u2019t have the app yet?";
+          openBtn.style.display = "none";
+          document.getElementById("storeButtons").classList.add("visible");
+        }, FALLBACK_DELAY);
+      }
+
+      // Auto-attempt on mobile (deep link via iframe doesn't require gesture on all browsers)
+      if (isIOS || isAndroid) {
+        tryDeepLink();
+      }
     })();
   </script>
 </body>
