@@ -131,15 +131,32 @@
   <script>
     (function () {
       // ── Configuration ─────────────────────────────────────────────
-      var DEEP_LINK_BASE = "nearhealthapp://onboarding/policy_activation";
       var IOS_STORE      = "https://apps.apple.com/app/near-health/id000000000";
       var ANDROID_STORE  = "https://play.google.com/store/apps/details?id=com.nearhealth.app";
       var FALLBACK_DELAY = 2000;
       // ──────────────────────────────────────────────────────────────
 
-      // Forward all query params from the current URL to the deep link
-      var params   = window.location.search;
-      var deepLink = DEEP_LINK_BASE + (params || "");
+      // Detect the flow based on query parameters:
+      //
+      //   ?care_link=<JWT>        → onboarding / care link activation
+      //                             deep link: nearhealthapp://onboarding/policy_activation?care_link=<JWT>
+      //
+      //   ?password_reset=<JWT>   → forgot password flow
+      //                             deep link: nearhealthapp://password-reset?care_link=<JWT>
+      //                             (the JWT is re-keyed from password_reset to care_link so the
+      //                             app's CareLinkService can extract it with the same key)
+      var urlParams      = new URLSearchParams(window.location.search);
+      var passwordReset  = urlParams.get("password_reset");
+
+      var deepLink;
+      if (passwordReset) {
+        // Password reset flow — route to the password-reset deep link scheme
+        deepLink = "nearhealthapp://password-reset?care_link=" + encodeURIComponent(passwordReset) + "&type=password_reset";
+      } else {
+        // Default flow — forward all query params to the care link activation scheme
+        var DEEP_LINK_BASE = "nearhealthapp://onboarding/policy_activation";
+        deepLink = DEEP_LINK_BASE + (window.location.search || "");
+      }
 
       // Detect platform
       var ua        = navigator.userAgent || "";
